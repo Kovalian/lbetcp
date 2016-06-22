@@ -20,8 +20,8 @@
 
 #include <net/tcp.h>
 
-static int alpha = 2;
-static int beta  = 4;
+static int alpha = 1;
+static int beta  = 3;
 static int gamma = 1;
 
 module_param(alpha, int, 0644);
