@@ -38,8 +38,6 @@
 
 #include <net/tcp.h>
 
-#include "tcp_vegas.h"
-
 static int alpha = 2;
 static int beta  = 4;
 static int gamma = 1;
@@ -50,6 +48,17 @@ module_param(beta, int, 0644);
 MODULE_PARM_DESC(beta, "upper bound of packets in network");
 module_param(gamma, int, 0644);
 MODULE_PARM_DESC(gamma, "limit on increase (scale by 2)");
+
+/* Vegas variables */
+struct vegas {
+	u32	beg_snd_nxt;	/* right edge during last RTT */
+	u32	beg_snd_una;	/* left edge  during last RTT */
+	u32	beg_snd_cwnd;	/* saves the size of the cwnd */
+	u8	doing_vegas_now;/* if true, do vegas for this RTT */
+	u16	cntRTT;		/* # of RTTs measured within last RTT */
+	u32	minRTT;		/* min of RTTs measured within last RTT (in usec) */
+	u32	baseRTT;	/* the min of all Vegas RTT measurements seen (in usec) */
+};
 
 /* There are several situations when we must "re-start" Vegas:
  *
