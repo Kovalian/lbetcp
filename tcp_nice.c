@@ -1,34 +1,16 @@
 /*
- * TCP Vegas congestion control
+ * TCP Nice congestion control
  *
- * This is based on the congestion detection/avoidance scheme described in
- *    Lawrence S. Brakmo and Larry L. Peterson.
- *    "TCP Vegas: End to end congestion avoidance on a global internet."
- *    IEEE Journal on Selected Areas in Communication, 13(8):1465--1480,
- *    October 1995. Available from:
- *	ftp://ftp.cs.arizona.edu/xkernel/Papers/jsac.ps
+ * Based on the congestion detection/avoidance scheme described in
+ *    Arun Venkataramani, Ravi Kokku and Mike Dahlin.
+ *    "TCP Nice: A Mechanism for Background Transfers."
+ *    ACM SIGOPS Operating Systems Review, 36(SI):329-343,
+ *    2002. Available from:
+ *	https://www.researchgate.net/profile/Ravi_Kokku/publication/
+ *  2543144_TCP_Nice_A_Mechanism_for_Background_Transfers/links/
+ *  00b7d52b0fb54c6fe4000000.pdf
  *
- * See http://www.cs.arizona.edu/xkernel/ for their implementation.
- * The main aspects that distinguish this implementation from the
- * Arizona Vegas implementation are:
- *   o We do not change the loss detection or recovery mechanisms of
- *     Linux in any way. Linux already recovers from losses quite well,
- *     using fine-grained timers, NewReno, and FACK.
- *   o To avoid the performance penalty imposed by increasing cwnd
- *     only every-other RTT during slow start, we increase during
- *     every RTT during slow start, just like Reno.
- *   o Largely to allow continuous cwnd growth during slow start,
- *     we use the rate at which ACKs come back as the "actual"
- *     rate, rather than the rate at which data is sent.
- *   o To speed convergence to the right rate, we set the cwnd
- *     to achieve the right ("actual") rate when we exit slow start.
- *   o To filter out the noise caused by delayed ACKs, we use the
- *     minimum RTT sample observed during the last RTT to calculate
- *     the actual rate.
- *   o When the sender re-starts from idle, it waits until it has
- *     received ACKs for an entire flight of new data before making
- *     a cwnd adjustment decision. The original Vegas implementation
- *     assumed senders never went idle.
+ * Based on TCP Vegas implementation by Stephen Hemminger.
  */
 
 #include <linux/mm.h>
@@ -49,15 +31,15 @@ MODULE_PARM_DESC(beta, "upper bound of packets in network");
 module_param(gamma, int, 0644);
 MODULE_PARM_DESC(gamma, "limit on increase (scale by 2)");
 
-/* Vegas variables */
-struct vegas {
+/* Nice variables */
+struct nice {
 	u32	beg_snd_nxt;	/* right edge during last RTT */
 	u32	beg_snd_una;	/* left edge  during last RTT */
 	u32	beg_snd_cwnd;	/* saves the size of the cwnd */
-	u8	doing_vegas_now;/* if true, do vegas for this RTT */
+	u8	doing_nice_now;/* if true, do nice for this RTT */
 	u16	cntRTT;		/* # of RTTs measured within last RTT */
 	u32	minRTT;		/* min of RTTs measured within last RTT (in usec) */
-	u32	baseRTT;	/* the min of all Vegas RTT measurements seen (in usec) */
+	u32	baseRTT;	/* the min of all nice RTT measurements seen (in usec) */
 };
 
 /* There are several situations when we must "re-start" Vegas:
@@ -76,37 +58,37 @@ struct vegas {
  * Instead we must wait until the completion of an RTT during
  * which we actually receive ACKs.
  */
-static void vegas_enable(struct sock *sk)
+static void nice_enable(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
-	struct vegas *vegas = inet_csk_ca(sk);
+	struct nice *nice = inet_csk_ca(sk);
 
 	/* Begin taking Vegas samples next time we send something. */
-	vegas->doing_vegas_now = 1;
+	nice->doing_nice_now = 1;
 
 	/* Set the beginning of the next send window. */
-	vegas->beg_snd_nxt = tp->snd_nxt;
+	nice->beg_snd_nxt = tp->snd_nxt;
 
-	vegas->cntRTT = 0;
-	vegas->minRTT = 0x7fffffff;
+	nice->cntRTT = 0;
+	nice->minRTT = 0x7fffffff;
 }
 
 /* Stop taking Vegas samples for now. */
-static inline void vegas_disable(struct sock *sk)
+static inline void nice_disable(struct sock *sk)
 {
-	struct vegas *vegas = inet_csk_ca(sk);
+	struct nice *nice = inet_csk_ca(sk);
 
-	vegas->doing_vegas_now = 0;
+	nice->doing_nice_now = 0;
 }
 
-void tcp_vegas_init(struct sock *sk)
+void tcp_nice_init(struct sock *sk)
 {
-	struct vegas *vegas = inet_csk_ca(sk);
+	struct nice *nice = inet_csk_ca(sk);
 
-	vegas->baseRTT = 0x7fffffff;
-	vegas_enable(sk);
+	nice->baseRTT = 0x7fffffff;
+	nice_enable(sk);
 }
-EXPORT_SYMBOL_GPL(tcp_vegas_init);
+EXPORT_SYMBOL_GPL(tcp_nice_init);
 
 /* Do RTT sampling needed for Vegas.
  * Basically we:
@@ -116,9 +98,9 @@ EXPORT_SYMBOL_GPL(tcp_vegas_init);
  *   o min-filter RTT samples from a much longer window (forever for now)
  *     to find the propagation delay (baseRTT)
  */
-void tcp_vegas_pkts_acked(struct sock *sk, u32 cnt, s32 rtt_us)
+void tcp_nice_pkts_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 {
-	struct vegas *vegas = inet_csk_ca(sk);
+	struct nice *nice = inet_csk_ca(sk);
 	u32 vrtt;
 
 	if (rtt_us < 0)
@@ -128,25 +110,25 @@ void tcp_vegas_pkts_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 	vrtt = rtt_us + 1;
 
 	/* Filter to find propagation delay: */
-	if (vrtt < vegas->baseRTT)
-		vegas->baseRTT = vrtt;
+	if (vrtt < nice->baseRTT)
+		nice->baseRTT = vrtt;
 
 	/* Find the min RTT during the last RTT to find
 	 * the current prop. delay + queuing delay:
 	 */
-	vegas->minRTT = min(vegas->minRTT, vrtt);
-	vegas->cntRTT++;
+	nice->minRTT = min(nice->minRTT, vrtt);
+	nice->cntRTT++;
 }
-EXPORT_SYMBOL_GPL(tcp_vegas_pkts_acked);
+EXPORT_SYMBOL_GPL(tcp_nice_pkts_acked);
 
-void tcp_vegas_state(struct sock *sk, u8 ca_state)
+void tcp_nice_state(struct sock *sk, u8 ca_state)
 {
 	if (ca_state == TCP_CA_Open)
-		vegas_enable(sk);
+		nice_enable(sk);
 	else
-		vegas_disable(sk);
+		nice_disable(sk);
 }
-EXPORT_SYMBOL_GPL(tcp_vegas_state);
+EXPORT_SYMBOL_GPL(tcp_nice_state);
 
 /*
  * If the connection is idle and we are restarting,
@@ -157,36 +139,36 @@ EXPORT_SYMBOL_GPL(tcp_vegas_state);
  * packets, _then_ we can make Vegas calculations
  * again.
  */
-void tcp_vegas_cwnd_event(struct sock *sk, enum tcp_ca_event event)
+void tcp_nice_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 {
 	if (event == CA_EVENT_CWND_RESTART ||
 	    event == CA_EVENT_TX_START)
-		tcp_vegas_init(sk);
+		tcp_nice_init(sk);
 }
-EXPORT_SYMBOL_GPL(tcp_vegas_cwnd_event);
+EXPORT_SYMBOL_GPL(tcp_nice_cwnd_event);
 
-static inline u32 tcp_vegas_ssthresh(struct tcp_sock *tp)
+static inline u32 tcp_nice_ssthresh(struct tcp_sock *tp)
 {
 	return  min(tp->snd_ssthresh, tp->snd_cwnd-1);
 }
 
-static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
+static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct vegas *vegas = inet_csk_ca(sk);
+	struct nice *nice = inet_csk_ca(sk);
 
-	if (!vegas->doing_vegas_now) {
+	if (!nice->doing_nice_now) {
 		tcp_reno_cong_avoid(sk, ack, acked);
 		return;
 	}
 
-	if (after(ack, vegas->beg_snd_nxt)) {
+	if (after(ack, nice->beg_snd_nxt)) {
 		/* Do the Vegas once-per-RTT cwnd adjustment. */
 
 		/* Save the extent of the current window so we can use this
 		 * at the end of the next RTT.
 		 */
-		vegas->beg_snd_nxt  = tp->snd_nxt;
+		nice->beg_snd_nxt  = tp->snd_nxt;
 
 		/* We do the Vegas calculations only if we got enough RTT
 		 * samples that we can be reasonably sure that we got
@@ -197,7 +179,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		 * If  we have 3 samples, we should be OK.
 		 */
 
-		if (vegas->cntRTT <= 2) {
+		if (nice->cntRTT <= 2) {
 			/* We don't have enough RTT samples to do the Vegas
 			 * calculation, so we'll behave like Reno.
 			 */
@@ -217,7 +199,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			 * of delayed ACKs, at the cost of noticing congestion
 			 * a bit later.
 			 */
-			rtt = vegas->minRTT;
+			rtt = nice->minRTT;
 
 			/* Calculate the cwnd we should have, if we weren't
 			 * going too fast.
@@ -225,14 +207,14 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			 * This is:
 			 *     (actual rate in segments) * baseRTT
 			 */
-			target_cwnd = (u64)tp->snd_cwnd * vegas->baseRTT;
+			target_cwnd = (u64)tp->snd_cwnd * nice->baseRTT;
 			do_div(target_cwnd, rtt);
 
 			/* Calculate the difference between the window we had,
 			 * and the window we would like to have. This quantity
 			 * is the "Diff" from the Arizona Vegas papers.
 			 */
-			diff = tp->snd_cwnd * (rtt-vegas->baseRTT) / vegas->baseRTT;
+			diff = tp->snd_cwnd * (rtt-nice->baseRTT) / nice->baseRTT;
 
 			if (diff > gamma && tcp_in_slow_start(tp)) {
 				/* Going too fast. Time to slow down
@@ -247,7 +229,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				 * utilization.
 				 */
 				tp->snd_cwnd = min(tp->snd_cwnd, (u32)target_cwnd+1);
-				tp->snd_ssthresh = tcp_vegas_ssthresh(tp);
+				tp->snd_ssthresh = tcp_nice_ssthresh(tp);
 
 			} else if (tcp_in_slow_start(tp)) {
 				/* Slow start.  */
@@ -264,7 +246,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 					 */
 					tp->snd_cwnd--;
 					tp->snd_ssthresh
-						= tcp_vegas_ssthresh(tp);
+						= tcp_nice_ssthresh(tp);
 				} else if (diff < alpha) {
 					/* We don't have enough extra packets
 					 * in the network, so speed up.
@@ -286,8 +268,8 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		}
 
 		/* Wipe the slate clean for the next RTT. */
-		vegas->cntRTT = 0;
-		vegas->minRTT = 0x7fffffff;
+		nice->cntRTT = 0;
+		nice->minRTT = 0x7fffffff;
 	}
 	/* Use normal slow start */
 	else if (tcp_in_slow_start(tp))
@@ -295,13 +277,13 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 }
 
 /* Extract info for Tcp socket info provided via netlink. */
-size_t tcp_vegas_get_info(struct sock *sk, u32 ext, int *attr,
+size_t tcp_nice_get_info(struct sock *sk, u32 ext, int *attr,
 			  union tcp_cc_info *info)
 {
-	const struct vegas *ca = inet_csk_ca(sk);
+	const struct nice *ca = inet_csk_ca(sk);
 
 	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
-		info->vegas.tcpv_enabled = ca->doing_vegas_now,
+		info->vegas.tcpv_enabled = ca->doing_nice_now,
 		info->vegas.tcpv_rttcnt = ca->cntRTT,
 		info->vegas.tcpv_rtt = ca->baseRTT,
 		info->vegas.tcpv_minrtt = ca->minRTT,
@@ -311,36 +293,36 @@ size_t tcp_vegas_get_info(struct sock *sk, u32 ext, int *attr,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tcp_vegas_get_info);
+EXPORT_SYMBOL_GPL(tcp_nice_get_info);
 
-static struct tcp_congestion_ops tcp_vegas __read_mostly = {
-	.init		= tcp_vegas_init,
+static struct tcp_congestion_ops tcp_nice __read_mostly = {
+	.init		= tcp_nice_init,
 	.ssthresh	= tcp_reno_ssthresh,
-	.cong_avoid	= tcp_vegas_cong_avoid,
-	.pkts_acked	= tcp_vegas_pkts_acked,
-	.set_state	= tcp_vegas_state,
-	.cwnd_event	= tcp_vegas_cwnd_event,
-	.get_info	= tcp_vegas_get_info,
+	.cong_avoid	= tcp_nice_cong_avoid,
+	.pkts_acked	= tcp_nice_pkts_acked,
+	.set_state	= tcp_nice_state,
+	.cwnd_event	= tcp_nice_cwnd_event,
+	.get_info	= tcp_nice_get_info,
 
 	.owner		= THIS_MODULE,
-	.name		= "vegas",
+	.name		= "nice",
 };
 
-static int __init tcp_vegas_register(void)
+static int __init tcp_nice_register(void)
 {
-	BUILD_BUG_ON(sizeof(struct vegas) > ICSK_CA_PRIV_SIZE);
-	tcp_register_congestion_control(&tcp_vegas);
+	BUILD_BUG_ON(sizeof(struct nice) > ICSK_CA_PRIV_SIZE);
+	tcp_register_congestion_control(&tcp_nice);
 	return 0;
 }
 
-static void __exit tcp_vegas_unregister(void)
+static void __exit tcp_nice_unregister(void)
 {
-	tcp_unregister_congestion_control(&tcp_vegas);
+	tcp_unregister_congestion_control(&tcp_nice);
 }
 
-module_init(tcp_vegas_register);
-module_exit(tcp_vegas_unregister);
+module_init(tcp_nice_register);
+module_exit(tcp_nice_unregister);
 
-MODULE_AUTHOR("Stephen Hemminger");
+MODULE_AUTHOR("Kevin Ong, Stephen Hemminger");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("TCP Vegas");
+MODULE_DESCRIPTION("TCP Nice");
