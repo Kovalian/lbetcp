@@ -39,7 +39,9 @@ struct nice {
 	u8	doing_nice_now;/* if true, do nice for this RTT */
 	u16	cntRTT;		/* # of RTTs measured within last RTT */
 	u32	minRTT;		/* min of RTTs measured within last RTT (in usec) */
+	u32 maxRTT;		/* max of RTTs measured within last RTT (in usec) */
 	u32	baseRTT;	/* the min of all nice RTT measurements seen (in usec) */
+	u8  numCong;	/* number of congestion events detected by nice */
 };
 
 /* There are several situations when we must "re-start" Vegas:
