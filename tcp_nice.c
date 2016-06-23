@@ -119,6 +119,7 @@ void tcp_nice_pkts_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 	 * the current prop. delay + queuing delay:
 	 */
 	nice->minRTT = min(nice->minRTT, vrtt);
+	nice->maxRTT = max(nice->maxRTT, vrtt);
 	nice->cntRTT++;
 }
 EXPORT_SYMBOL_GPL(tcp_nice_pkts_acked);
@@ -186,6 +187,9 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			 * calculation, so we'll behave like Reno.
 			 */
 			tcp_reno_cong_avoid(sk, ack, acked);
+
+			/* Initialise maxRTT to 2*minRTT */
+			nice->maxRTT = nice->minRTT * 2;
 		} else {
 			u32 rtt, diff;
 			u64 target_cwnd;
