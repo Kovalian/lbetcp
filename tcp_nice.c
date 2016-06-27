@@ -244,7 +244,12 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			} else if (tcp_in_slow_start(tp)) {
 				/* Slow start.  */
 				tcp_slow_start(tp, acked);
-			} else {
+			} else if (nice->numCong > tp->snd_cwnd / 2) {
+				/* Nice detected too many congestion events
+				 * perform multiplicative window reduction.
+				 */
+				tp->snd_cwnd = tp->snd_cwnd / 2;
+		    } else {
 				/* Congestion avoidance. */
 
 				/* Figure out where we would like cwnd
@@ -280,6 +285,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		/* Wipe the slate clean for the next RTT. */
 		nice->cntRTT = 0;
 		nice->minRTT = 0x7fffffff;
+		nice->numCong = 0;
 	}
 	/* Use normal slow start */
 	else if (tcp_in_slow_start(tp))
