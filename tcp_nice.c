@@ -285,6 +285,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 		/* Wipe the slate clean for the next RTT. */
 		nice->cntRTT = 0;
 		nice->minRTT = 0x7fffffff;
+		nice->maxRTT = 0;
 		nice->numCong = 0;
 	}
 	/* Use normal slow start */
