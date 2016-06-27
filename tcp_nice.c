@@ -121,6 +121,10 @@ void tcp_nice_pkts_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 	nice->minRTT = min(nice->minRTT, vrtt);
 	nice->maxRTT = max(nice->maxRTT, vrtt);
 	nice->cntRTT++;
+
+	if (vrtt > (1 - 0.2) * nice->baseRTT + 0.2 * nice->maxRTT) {
+		nice->numCong++;
+	}
 }
 EXPORT_SYMBOL_GPL(tcp_nice_pkts_acked);
 
