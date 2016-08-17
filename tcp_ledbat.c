@@ -49,12 +49,12 @@ struct ledbat_list {
 /* ledbat structure */
 struct ledbat {
   u32 base_delay;
-  long cwnd_cnt;
+  s32 cwnd_cnt;
 
   struct ledbat_list current_delays;
   struct ledbat_list base_delays; 
 
-  unsigned long last_rollover; /* This is to be interpreted as time */
+  u32 last_rollover; /* This is to be interpreted as time */
   
   u32 remote_hz;
   u32 last_local_ts;
