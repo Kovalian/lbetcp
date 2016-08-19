@@ -284,6 +284,7 @@ static struct tcp_congestion_ops tcp_ledbat = {
 };
   
 static int __init tcp_ledbat_register(void){
+  BUILD_BUG_ON(sizeof(struct ledbat) > ICSK_CA_PRIV_SIZE);
   tcp_register_congestion_control(&tcp_ledbat);
 }
 
