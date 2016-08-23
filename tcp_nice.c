@@ -24,12 +24,16 @@ static int alpha = 1;
 static int beta  = 3;
 static int gamma = 1;
 
+static int max_fwnd = 48;
+
 module_param(alpha, int, 0644);
 MODULE_PARM_DESC(alpha, "lower bound of packets in network");
 module_param(beta, int, 0644);
 MODULE_PARM_DESC(beta, "upper bound of packets in network");
 module_param(gamma, int, 0644);
 MODULE_PARM_DESC(gamma, "limit on increase (scale by 2)");
+module_param(max_fwnd, int, 0644);
+MODULE_PARM_DESC(max_fwnd, "highest permitted value of fractional_cwnd");
 
 /* Nice variables */
 struct nice {
