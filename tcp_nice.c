@@ -42,6 +42,7 @@ struct nice {
 	u32 maxRTT;		/* max of RTTs measured within last RTT (in usec) */
 	u32	baseRTT;	/* the min of all nice RTT measurements seen (in usec) */
 	u8  numCong;	/* number of congestion events detected by nice */
+	u8	fractional_cwnd; /* denominator of the cwnd */
 };
 
 /* There are several situations when we must "re-start" Vegas:
@@ -87,6 +88,8 @@ void tcp_nice_init(struct sock *sk)
 {
 	struct nice *nice = inet_csk_ca(sk);
 
+	/* Initialise the CWND denominator */
+	nice->fractional_cwnd = 2; 
 	nice->baseRTT = 0x7fffffff;
 	nice_enable(sk);
 }
