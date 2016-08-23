@@ -255,7 +255,11 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				/* Nice detected too many congestion events
 				 * perform multiplicative window reduction.
 				 */
-				tp->snd_cwnd = tp->snd_cwnd / 2;
+				if (tp->snd_cwnd > 2 && nice->fractional_cwnd == 2) {
+					tp->snd_cwnd = tp->snd_cwnd / 2;
+				} else if (nice->fractional_cwnd < max_fwnd) {
+					nice->fractional_cwnd *= 2; 
+				}
 		    } else {
 				/* Congestion avoidance. */
 
@@ -266,14 +270,23 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 					/* The old window was too fast, so
 					 * we slow down.
 					 */
-					tp->snd_cwnd--;
+					if (tp->snd_cwnd > 2 && nice->fractional_cwnd == 2) {
+						tp->snd_cwnd--;
+					} else if (nice->fractional_cwnd <= max_fwnd) {
+						nice->fractional_cwnd++;
+					}
+
 					tp->snd_ssthresh
 						= tcp_nice_ssthresh(tp);
 				} else if (diff < alpha) {
 					/* We don't have enough extra packets
 					 * in the network, so speed up.
 					 */
-					tp->snd_cwnd++;
+					if (tp->snd_cwnd > 2 && nice->fractional_cwnd == 2) {
+						tp->snd_cwnd++;
+					} else if (nice->fractional_cwnd <= max_fwnd) {
+						nice->fractional_cwnd--;
+					}
 				} else {
 					/* Sending just as fast as we
 					 * should be.
