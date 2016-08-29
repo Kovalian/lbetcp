@@ -47,6 +47,7 @@ struct nice {
 	u32	baseRTT;	/* the min of all nice RTT measurements seen (in usec) */
 	u8  numCong;	/* number of congestion events detected by nice */
 	u8	fractional_cwnd; /* denominator of the cwnd */
+	u8	nice_timer;	/* keeps time for the fractional cwnd */
 };
 
 /* There are several situations when we must "re-start" Vegas:
@@ -94,6 +95,8 @@ void tcp_nice_init(struct sock *sk)
 
 	/* Initialise the CWND denominator */
 	nice->fractional_cwnd = 2; 
+	nice->nice_timer = 0;
+
 	nice->baseRTT = 0x7fffffff;
 	nice_enable(sk);
 }
@@ -170,6 +173,16 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct nice *nice = inet_csk_ca(sk);
+
+	if (nice->fractional_cwnd > 2 && nice->nice_timer == (2 * nice->fractional_cwnd)) {
+		/* Send two packets in this RTT then reset the timer */
+		tp->snd_cwnd = 2;
+		nice->nice_timer = 1;
+	} else if (nice->fractional_cwnd > 2) {
+		/* Waiting to send packets */
+		tp->snd_cwnd = 0;
+		nice->nice_timer++;
+	}
 
 	if (!nice->doing_nice_now) {
 		tcp_reno_cong_avoid(sk, ack, acked);
