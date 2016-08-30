@@ -307,7 +307,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				}
 			}
 
-			if (tp->snd_cwnd < 2)
+			if (tp->snd_cwnd < 2 && nice->fractional_cwnd == 2)
 				tp->snd_cwnd = 2;
 			else if (tp->snd_cwnd > tp->snd_cwnd_clamp)
 				tp->snd_cwnd = tp->snd_cwnd_clamp;
