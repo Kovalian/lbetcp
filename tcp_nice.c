@@ -185,7 +185,34 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	}
 
 	if (!nice->doing_nice_now) {
-		tcp_reno_cong_avoid(sk, ack, acked);
+		if (tp->snd_cwnd <= 2 && nice->fractional_cwnd >= 2 && nice->fractional_cwnd
+				<= max_fwnd) {
+			/* Determine what change Reno would apply and use it on the 
+		 	 * fractional CWND
+		 	 */
+			int16_t cwnd_change;
+			u32 cur_cwnd = tp->snd_cwnd;
+			u32 cur_cwnd_cnt = tp->snd_cwnd_cnt;
+			tcp_reno_cong_avoid(sk, ack, acked);
+
+			cwnd_change = tp->snd_cwnd - cur_cwnd;
+
+			if (cwnd_change != 0) {
+					nice->fractional_cwnd -= cwnd_change;
+			}
+
+			/* Restore previous CWND and let Nice continue */
+			if (nice->fractional_cwnd > 2) {
+				tp->snd_cwnd = cur_cwnd;
+				tp->snd_cwnd_cnt = cur_cwnd_cnt;
+			}
+			else {
+				nice->fractional_cwnd = 2;
+			}
+		} else {
+			/* Just do Reno */
+			tcp_reno_cong_avoid(sk, ack, acked);
+		}
 		return;
 	}
 
@@ -210,7 +237,34 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			/* We don't have enough RTT samples to do the Vegas
 			 * calculation, so we'll behave like Reno.
 			 */
-			tcp_reno_cong_avoid(sk, ack, acked);
+ 			if (tp->snd_cwnd <= 2 && nice->fractional_cwnd >= 2 && nice->fractional_cwnd
+ 					<= max_fwnd) {
+ 			/* Determine what change Reno would apply and use it on the 
+ 			 * fractional CWND
+ 			 */
+ 				int16_t cwnd_change;
+ 				u32 cur_cwnd = tp->snd_cwnd;
+ 				u32 cur_cwnd_cnt = tp->snd_cwnd_cnt;
+ 				tcp_reno_cong_avoid(sk, ack, acked);
+ 
+ 				cwnd_change = tp->snd_cwnd - cur_cwnd;
+ 
+ 				if (cwnd_change != 0) {
+ 						nice->fractional_cwnd -= cwnd_change;
+ 				}
+ 
+ 				/* Restore previous CWND and let Nice continue */
+ 				if (nice->fractional_cwnd > 2) {
+ 					tp->snd_cwnd = cur_cwnd;
+ 					tp->snd_cwnd_cnt = cur_cwnd_cnt;
+ 				}
+ 				else {
+ 					nice->fractional_cwnd = 2;
+ 				}
+ 			} else {
+ 				/* Just do Reno */
+ 				tcp_reno_cong_avoid(sk, ack, acked);
+ 			}
 
 			/* Initialise maxRTT to 2*minRTT */
 			nice->maxRTT = nice->minRTT * 2;
