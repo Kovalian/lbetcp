@@ -169,6 +169,34 @@ static inline u32 tcp_nice_ssthresh(struct tcp_sock *tp)
 	return  min(tp->snd_ssthresh, tp->snd_cwnd-1);
 }
 
+static void tcp_reno_fractional_ca(struct sock *sk, u32 ack, u32 acked)
+{
+/* Determine what change Reno would apply and use it on the fractional CWND */
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct nice *nice = inet_csk_ca(sk);
+		
+	int16_t cwnd_change;
+	u32 cur_cwnd = tp->snd_cwnd;
+	u32 cur_cwnd_cnt = tp->snd_cwnd_cnt;
+
+	tcp_reno_cong_avoid(sk, ack, acked);
+
+	cwnd_change = tp->snd_cwnd - cur_cwnd;
+
+	if (cwnd_change != 0) {
+			nice->fractional_cwnd -= cwnd_change;
+	}
+
+	/* Restore previous CWND and let Nice continue */
+	if (nice->fractional_cwnd > 2) {
+		tp->snd_cwnd = cur_cwnd;
+		tp->snd_cwnd_cnt = cur_cwnd_cnt;
+	}
+	else {
+		nice->fractional_cwnd = 2;
+	}
+}
+
 static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -187,28 +215,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	if (!nice->doing_nice_now) {
 		if (tp->snd_cwnd <= 2 && nice->fractional_cwnd >= 2 && nice->fractional_cwnd
 				<= max_fwnd) {
-			/* Determine what change Reno would apply and use it on the 
-		 	 * fractional CWND
-		 	 */
-			int16_t cwnd_change;
-			u32 cur_cwnd = tp->snd_cwnd;
-			u32 cur_cwnd_cnt = tp->snd_cwnd_cnt;
-			tcp_reno_cong_avoid(sk, ack, acked);
-
-			cwnd_change = tp->snd_cwnd - cur_cwnd;
-
-			if (cwnd_change != 0) {
-					nice->fractional_cwnd -= cwnd_change;
-			}
-
-			/* Restore previous CWND and let Nice continue */
-			if (nice->fractional_cwnd > 2) {
-				tp->snd_cwnd = cur_cwnd;
-				tp->snd_cwnd_cnt = cur_cwnd_cnt;
-			}
-			else {
-				nice->fractional_cwnd = 2;
-			}
+			tcp_reno_fractional_ca(sk, ack, acked);
 		} else {
 			/* Just do Reno */
 			tcp_reno_cong_avoid(sk, ack, acked);
@@ -239,28 +246,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			 */
  			if (tp->snd_cwnd <= 2 && nice->fractional_cwnd >= 2 && nice->fractional_cwnd
  					<= max_fwnd) {
- 			/* Determine what change Reno would apply and use it on the 
- 			 * fractional CWND
- 			 */
- 				int16_t cwnd_change;
- 				u32 cur_cwnd = tp->snd_cwnd;
- 				u32 cur_cwnd_cnt = tp->snd_cwnd_cnt;
- 				tcp_reno_cong_avoid(sk, ack, acked);
- 
- 				cwnd_change = tp->snd_cwnd - cur_cwnd;
- 
- 				if (cwnd_change != 0) {
- 						nice->fractional_cwnd -= cwnd_change;
- 				}
- 
- 				/* Restore previous CWND and let Nice continue */
- 				if (nice->fractional_cwnd > 2) {
- 					tp->snd_cwnd = cur_cwnd;
- 					tp->snd_cwnd_cnt = cur_cwnd_cnt;
- 				}
- 				else {
- 					nice->fractional_cwnd = 2;
- 				}
+ 				tcp_reno_fractional_ca(sk, ack, acked);
  			} else {
  				/* Just do Reno */
  				tcp_reno_cong_avoid(sk, ack, acked);
