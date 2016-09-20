@@ -24,6 +24,9 @@ static int alpha = 1;
 static int beta  = 3;
 static int gamma = 1;
 
+static int fraction = 50;
+static int fraction_divisor = 0;
+
 static int max_fwnd = 48;
 
 module_param(alpha, int, 0644);
@@ -32,6 +35,8 @@ module_param(beta, int, 0644);
 MODULE_PARM_DESC(beta, "upper bound of packets in network");
 module_param(gamma, int, 0644);
 MODULE_PARM_DESC(gamma, "limit on increase (scale by 2)");
+module_param(fraction, int, 0644);
+MODULE_PARM_DESC(fraction, "fraction of cwnd to experience congestion before multiplicative decrease");
 module_param(max_fwnd, int, 0644);
 MODULE_PARM_DESC(max_fwnd, "highest permitted value of fractional_cwnd");
 
@@ -92,6 +97,8 @@ static inline void nice_disable(struct sock *sk)
 void tcp_nice_init(struct sock *sk)
 {
 	struct nice *nice = inet_csk_ca(sk);
+
+	fraction_divisor = 100 / fraction; 
 
 	/* Initialise the CWND denominator */
 	nice->fractional_cwnd = 2; 
@@ -304,7 +311,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 			} else if (tcp_in_slow_start(tp)) {
 				/* Slow start.  */
 				tcp_slow_start(tp, acked);
-			} else if (nice->numCong > tp->snd_cwnd / 2) {
+			} else if (nice->numCong > tp->snd_cwnd / fraction_divisor) {
 				/* Nice detected too many congestion events
 				 * perform multiplicative window reduction.
 				 */
