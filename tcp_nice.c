@@ -25,6 +25,8 @@ static int beta  = 3;
 static int gamma = 1;
 
 static int fraction = 50;
+static int threshold = 20;
+
 static int fraction_divisor = 0;
 
 static int max_fwnd = 48;
@@ -37,6 +39,8 @@ module_param(gamma, int, 0644);
 MODULE_PARM_DESC(gamma, "limit on increase (scale by 2)");
 module_param(fraction, int, 0644);
 MODULE_PARM_DESC(fraction, "fraction of cwnd to experience congestion before multiplicative decrease");
+module_param(threshold, int, 0644);
+MODULE_PARM_DESC(threshold, "delay threshold for congestion detector");
 module_param(max_fwnd, int, 0644);
 MODULE_PARM_DESC(max_fwnd, "highest permitted value of fractional_cwnd");
 
@@ -139,7 +143,8 @@ void tcp_nice_pkts_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 	nice->maxRTT = max(nice->maxRTT, vrtt);
 	nice->cntRTT++;
 
-	if (vrtt > (4 * (nice->baseRTT * 200) / (5 * 2) + (nice->maxRTT * 200) / (5 * 2)) / 100) {
+	if (vrtt > ((100 - threshold) * (nice->baseRTT * 2000) / 200 + 
+			(threshold * (nice->maxRTT * 2000) / 200) / 1000)) {
 		nice->numCong++;
 	}
 }
