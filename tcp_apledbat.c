@@ -252,11 +252,16 @@ void tcp_apledbat_cong_avoid(struct sock *sk, u32 ack, u32 acked) {
    /* LEDABT cwnd increase/decrease */
    cwnd = tp->snd_cwnd;
    off_target = target - queuing_delay;
-   ledbat->cwnd_cnt += GAIN * off_target * acked;
-   if (abs(ledbat->cwnd_cnt) >= tp->snd_cwnd*target) {
-      long inc =  ledbat->cwnd_cnt/((long)target)/((long)tp->snd_cwnd);
-      cwnd += inc;
-      ledbat->cwnd_cnt -= inc*tp->snd_cwnd*target;
+   
+   if (off_target >= 0) {
+     /* under delay target, apply additive increase */
+	   cwnd++;	
+   } else {
+     /* over delay target, apply 1/8th cwnd reduction */
+		 u32 decr;
+
+		 decr = cwnd >> 3;  
+		 cwnd -= decr;
    }
 
    // From RFC6817: max_allowed_cwnd = flightsize + ALLOWED_INCREASE * MSS
