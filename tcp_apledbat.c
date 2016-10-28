@@ -16,7 +16,7 @@
 #include <linux/random.h>
 
 #define GAIN 1 /* GAIN MUST be set to 1 or less. */
-#define ALLOWED_INCREASE 1 /* ALLOWED_INCREASE SHOULD be 1, and it MUST be greater than 0 */
+#define ALLOWED_INCREASE 8 /* ALLOWED_INCREASE SHOULD be 8, and it MUST be greater than 0 */
 #define MIN_CWND 2U
 
 #define HZ_WEIGHT 3
