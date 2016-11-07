@@ -56,7 +56,6 @@ struct ledbat {
 
   u32 last_rollover; /* This is to be interpreted as time */
   
-  u32 remote_hz;
   u32 last_local_ts;
   u32 last_remote_ts;
   u32 local_time_offset;
@@ -94,7 +93,6 @@ static void tcp_ledbat_init(struct sock *sk){
   ledbat->remote_time_offset = 0;
   ledbat->last_local_ts=0;
   ledbat->last_remote_ts=0;
-  ledbat->remote_hz = HZ;
 
 }
 
@@ -168,36 +166,6 @@ static inline u32 time_in_ms(void)
 #endif
 }
 
-/* curently not used because doesn't work correctly 
- * as you should only estimate the HZ is there is no queuing delay...
- */
-static void estimate_remote_HZ(struct sock *sk){
-
-   struct tcp_sock *tp = tcp_sk(sk);
-   struct ledbat *ledbat = inet_csk_ca(sk);
-
-   int local_delta = 1;
-   int remote_delta = 1;
- 
-    //check which one has the higher delta -> this is the fine grained clock
-    //we know our own clock granularity
-    //HZ_remote= remote_delta * HZ_local /our_delta
-   if (ledbat->last_remote_ts!=0 && tp->rx_opt.rcv_tsval != ledbat->last_remote_ts 
-	&& ledbat->last_local_ts!=0 && tp->rx_opt.rcv_tsecr != ledbat->last_local_ts){
-      remote_delta = tp->rx_opt.rcv_tsval - ledbat->last_remote_ts;
-      local_delta = tp->rx_opt.rcv_tsecr - ledbat->last_local_ts;
-
-      u32 tmp_remote_hz = HZ * (remote_delta) / (local_delta);
-
-      ledbat->remote_hz = ledbat->remote_hz - (ledbat->remote_hz >> HZ_WEIGHT) +
-                          (tmp_remote_hz >> HZ_WEIGHT);
-   }
-
-   //remember last HZ value for remote and local
-   ledbat->last_remote_ts = tp->rx_opt.rcv_tsval;
-   ledbat->last_local_ts = tp->rx_opt.rcv_tsecr;
-}
-
 void tcp_apledbat_cong_avoid(struct sock *sk, u32 ack, u32 acked) {
 
    struct tcp_sock *tp = tcp_sk(sk);  
@@ -220,7 +188,7 @@ void tcp_apledbat_cong_avoid(struct sock *sk, u32 ack, u32 acked) {
    
    //calculate current OWD
    //delay * 1000 * 1/HZ; -> Result in [s]. Multiply by 1000 for [ms]
-   u32 time = (tp->rx_opt.rcv_tsval - ledbat->remote_time_offset)*1000/ledbat->remote_hz;
+   u32 time = (tp->rx_opt.rcv_tsval - ledbat->remote_time_offset)*1000/HZ;
    u32 remote_time = (tp->rx_opt.rcv_tsecr - ledbat->local_time_offset)*1000/HZ;
    if (time > remote_time)
       delay = time - remote_time;
