@@ -1,24 +1,21 @@
 /*
- * TCP Westwood+: end-to-end bandwidth estimation for TCP
+ * TCP Westwood+LP 
  *
- *      Angelo Dell'Aera: author of the first version of TCP Westwood+ in Linux 2.4
+ * - Kevin Ong: implementation of Westwood+LP in Linux 4.4
+ * - Angelo Dell'Aera: author of the first version of TCP Westwood+ in Linux 2.4
  *
- * Support at http://c3lab.poliba.it/index.php/Westwood
  * Main references in literature:
  *
  * - Mascolo S, Casetti, M. Gerla et al.
  *   "TCP Westwood: bandwidth estimation for TCP" Proc. ACM Mobicom 2001
  *
- * - A. Grieco, s. Mascolo
- *   "Performance evaluation of New Reno, Vegas, Westwood+ TCP" ACM Computer
- *     Comm. Review, 2004
- *
  * - A. Dell'Aera, L. Grieco, S. Mascolo.
  *   "Linux 2.4 Implementation of Westwood+ TCP with Rate-Halving :
  *    A Performance Evaluation Over the Internet" (ICC 2004), Paris, June 2004
  *
- * Westwood+ employs end-to-end bandwidth measurement to set cwnd and
- * ssthresh after packet loss. The probing phase is as the original Reno.
+ * - H. Shimonishi, T. Hama, M. Y. Sanadidi, M. Gerla, T. Murase
+ *	 "TCP-Westwood Low-Priority for Overlay QoS Mechanism"
+ *    IEICE Transactions on Communications, 2006.
  */
 
 #include <linux/mm.h>
@@ -273,7 +270,7 @@ static size_t tcp_westwood_info(struct sock *sk, u32 ext, int *attr,
 	return 0;
 }
 
-static struct tcp_congestion_ops tcp_westwood __read_mostly = {
+static struct tcp_congestion_ops tcp_westwoodlp __read_mostly = {
 	.init		= tcp_westwood_init,
 	.ssthresh	= tcp_reno_ssthresh,
 	.cong_avoid	= tcp_reno_cong_avoid,
@@ -283,23 +280,23 @@ static struct tcp_congestion_ops tcp_westwood __read_mostly = {
 	.pkts_acked	= tcp_westwood_pkts_acked,
 
 	.owner		= THIS_MODULE,
-	.name		= "westwood"
+	.name		= "westwoodlp"
 };
 
-static int __init tcp_westwood_register(void)
+static int __init tcp_westwoodlp_register(void)
 {
 	BUILD_BUG_ON(sizeof(struct westwood) > ICSK_CA_PRIV_SIZE);
-	return tcp_register_congestion_control(&tcp_westwood);
+	return tcp_register_congestion_control(&tcp_westwoodlp);
 }
 
-static void __exit tcp_westwood_unregister(void)
+static void __exit tcp_westwoodlp_unregister(void)
 {
-	tcp_unregister_congestion_control(&tcp_westwood);
+	tcp_unregister_congestion_control(&tcp_westwoodlp);
 }
 
-module_init(tcp_westwood_register);
-module_exit(tcp_westwood_unregister);
+module_init(tcp_westwoodlp_register);
+module_exit(tcp_westwoodlp_unregister);
 
-MODULE_AUTHOR("Stephen Hemminger, Angelo Dell'Aera");
+MODULE_AUTHOR("Kevin Ong, Stephen Hemminger, Angelo Dell'Aera");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("TCP Westwood+");
+MODULE_DESCRIPTION("TCP Westwood+LP");
