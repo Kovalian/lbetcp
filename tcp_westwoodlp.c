@@ -232,6 +232,14 @@ static void tcp_westwood_ack(struct sock *sk, u32 ack_flags)
 	westwood_fast_bw(sk);
 }
 
+static void tcp_westwood_cong_avoid(struct sock *sk, u32 ack, u32 acked)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct westwood *w = inet_csk_ca(sk);
+
+	tcp_reno_cong_avoid(sk, ack, acked);
+}
+
 static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -273,7 +281,7 @@ static size_t tcp_westwood_info(struct sock *sk, u32 ext, int *attr,
 static struct tcp_congestion_ops tcp_westwoodlp __read_mostly = {
 	.init		= tcp_westwood_init,
 	.ssthresh	= tcp_reno_ssthresh,
-	.cong_avoid	= tcp_reno_cong_avoid,
+	.cong_avoid	= tcp_westwood_cong_avoid,
 	.cwnd_event	= tcp_westwood_event,
 	.in_ack_event	= tcp_westwood_ack,
 	.get_info	= tcp_westwood_info,
