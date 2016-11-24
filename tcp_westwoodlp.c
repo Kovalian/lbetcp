@@ -237,7 +237,17 @@ static void tcp_westwood_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct westwood *w = inet_csk_ca(sk);
 
-	tcp_reno_cong_avoid(sk, ack, acked);
+	u32 ewr_thresh = 0;
+	u32 queue_length = 0;
+
+	queue_length = tp->snd_cwnd - w->bw_est * w->rtt_min;
+
+	if (queue_length > ewr_thresh) {
+		tp->snd_cwnd = tp->snd_ssthresh = tcp_westwood_bw_rttmin(sk);
+	} else {
+		tcp_reno_cong_avoid(sk, ack, acked);		
+	}
+
 }
 
 static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
