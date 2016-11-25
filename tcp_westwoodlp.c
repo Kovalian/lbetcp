@@ -37,6 +37,9 @@ struct westwood {
 	u32    rtt_min;          /* minimum observed RTT */
 	u8     first_ack;        /* flag which infers that this is the first ack */
 	u8     reset_rtt_min;    /* Reset RTT min to next RTT sample*/
+	u32	   delay_min;	     /* weighted average of minimum RTT observed within an EWR window */
+	u32	   delay_max;		 /* weighted average of maximum RTT observed within an EWR window */
+	u32	   delay_loss;		 /* weighted average of RTT observed when packet loss occurs */
 };
 
 /* TCP Westwood functions and constants */
@@ -68,6 +71,8 @@ static void tcp_westwood_init(struct sock *sk)
 	w->rtt_win_sx = tcp_time_stamp;
 	w->snd_una = tcp_sk(sk)->snd_una;
 	w->first_ack = 1;
+	w->delay_max = w->delay_min = 0;
+	w->delay_loss = 0;
 }
 
 /*
