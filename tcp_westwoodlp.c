@@ -145,6 +145,17 @@ static void westwood_update_window(struct sock *sk)
 	}
 }
 
+static u32 westwood_update_delay(struct sock *sk, u32 rtt_avg)
+{
+	struct westwood *w = inet_csk_ca(sk);
+	u32 rtt = w->rtt;
+
+	rtt -= rtt_avg >> 2; /* rtt is now the error in the average */
+	rtt_avg += rtt; /* Add rtt to average as 3/4 old + 1/4 new */
+
+	return rtt_avg;
+}
+
 static inline void update_rtt_min(struct westwood *w)
 {
 	if (w->reset_rtt_min) {
@@ -231,6 +242,19 @@ static void tcp_westwood_ack(struct sock *sk, u32 ack_flags)
 		w->bk += westwood_acked_count(sk);
 
 		update_rtt_min(w);
+
+		/* Initialise delay_min and delay_max on first estimate */
+		if (w->delay_min == 0 && w->delay_max == 0) {
+			w->delay_min = w->delay_max = w->rtt << 2;
+		}
+
+		/* Update delay_min and delay_max as appropriate */
+		if (w->rtt > w->delay_max) {
+			w->delay_max = westwood_update_delay(sk, w->delay_max);
+		} else if (w->rtt < w->delay_min) {
+			w->delay_min = westwood_update_delay(sk, w->delay_min);
+		}
+
 		return;
 	}
 
@@ -249,6 +273,9 @@ static void tcp_westwood_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 
 	if (queue_length > ewr_thresh) {
 		tp->snd_cwnd = tp->snd_ssthresh = tcp_westwood_bw_rttmin(sk);
+
+		/* Current RTT becomes lowest and highest RTT observed */
+		w->delay_max = w->delay_min = w->rtt;
 	} else {
 		tcp_reno_cong_avoid(sk, ack, acked);		
 	}
@@ -266,6 +293,7 @@ static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
 		break;
 	case CA_EVENT_LOSS:
 		tp->snd_ssthresh = tcp_westwood_bw_rttmin(sk);
+		w->delay_loss = westwood_update_delay(sk, w->delay_loss);
 		/* Update RTT_min when next ack arrives */
 		w->reset_rtt_min = 1;
 		break;
