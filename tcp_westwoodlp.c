@@ -274,8 +274,10 @@ static void tcp_westwood_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	u32 ewr_thresh = 0;
 	u32 queue_length = 0;
 
-	queue_length = tp->snd_cwnd - w->bw_est * w->rtt_min;
-	ewr_thresh = beta * (1 - w->rtt / w->delay_loss) * (1 - w->delay_min / w->delay_max);
+	if (w->delay_max != 0 && w->delay_loss != 0) {
+		queue_length = tp->snd_cwnd - w->bw_est * w->rtt_min;
+		ewr_thresh = beta * (1 - w->rtt / w->delay_loss) * (1 - w->delay_min / w->delay_max);
+	}
 
 	if (queue_length > ewr_thresh) {
 		tp->snd_cwnd = tp->snd_ssthresh = tcp_westwood_bw_rttmin(sk);
