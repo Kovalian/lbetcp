@@ -24,6 +24,11 @@
 #include <linux/inet_diag.h>
 #include <net/tcp.h>
 
+static int beta = 3;
+
+module_param(beta, int, 0644);
+MODULE_PARM_DESC(beta, "upper bound of early window reduction queue threshold");
+
 /* TCP Westwood structure */
 struct westwood {
 	u32    bw_ns_est;        /* first bandwidth estimation..not too smoothed 8) */
@@ -270,7 +275,7 @@ static void tcp_westwood_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	u32 queue_length = 0;
 
 	queue_length = tp->snd_cwnd - w->bw_est * w->rtt_min;
-	ewr_thresh = 3 * (1 - w->rtt / w->delay_loss) * (1 - w->delay_min / w->delay_max);
+	ewr_thresh = beta * (1 - w->rtt / w->delay_loss) * (1 - w->delay_min / w->delay_max);
 
 	if (queue_length > ewr_thresh) {
 		tp->snd_cwnd = tp->snd_ssthresh = tcp_westwood_bw_rttmin(sk);
