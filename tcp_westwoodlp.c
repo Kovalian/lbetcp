@@ -248,8 +248,8 @@ static void tcp_westwood_ack(struct sock *sk, u32 ack_flags)
 
 		update_rtt_min(w);
 
-		/* Initialise delay_min and delay_max on first estimate */
-		if (w->delay_min == 0 && w->delay_max == 0) {
+		/* Initialise delay_min and delay_max to rtt on first estimate */
+		if (w->delay_min == 0 && w->delay_max == 0 && w->rtt != TCP_WESTWOOD_INIT_RTT) {
 			w->delay_min = w->delay_max = w->rtt << 2;
 		}
 
