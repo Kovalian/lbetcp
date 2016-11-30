@@ -80,7 +80,7 @@ static void tcp_westwood_init(struct sock *sk)
 	w->first_ack = 1;
 	w->delay_max = w->delay_min = 0;
 	w->dmin_avg = w->dmax_avg = 0;
-	w->delay_loss = 0;
+	w->delay_loss = 1;
 }
 
 /*
@@ -277,9 +277,15 @@ static void tcp_westwood_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 
 	u32 ewr_thresh = 0;
 	u32 queue_length = 0;
+	u32 rtt = 0;
+
+	/* Negate RTT as a factor if delay_loss has no value */
+	if (w->delay_loss > 1) {
+		rtt = w->rtt;
+	}
 
 	/* Check that we have an RTT estimate before computing EWR threshold */
-	if (w->dmin_avg != w->dmax_avg && w->dmax_avg != 0 && w->delay_loss != 0) {
+	if (w->dmin_avg != w->dmax_avg && w->dmax_avg != 0) {
 		queue_length = tp->snd_cwnd - w->bw_est * w->rtt_min;
 		ewr_thresh = beta * (1 - (w->rtt << 2) / w->delay_loss) * (1 - w->dmin_avg / w->dmax_avg);
 	}
