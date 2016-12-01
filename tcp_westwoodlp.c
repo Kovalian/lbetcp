@@ -155,7 +155,7 @@ static void westwood_update_window(struct sock *sk)
 
 static u32 westwood_update_delay(u32 rtt, u32 rtt_avg)
 {
-	if (rtt_avg != 0) {
+	if (rtt_avg != 0 && rtt_avg != 1) {
 		rtt -= rtt_avg >> 2; /* rtt is now the error in the average */
 		rtt_avg += rtt; /* Add rtt to average as 3/4 old + 1/4 new */
 	} else {
