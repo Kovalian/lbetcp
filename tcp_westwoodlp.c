@@ -285,9 +285,13 @@ static void tcp_westwood_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	}
 
 	/* Check that we have an RTT estimate before computing EWR threshold */
+	/* Use delay_min and delay_max until the first EWR event */
 	if (w->dmin_avg != w->dmax_avg && w->dmax_avg != 0) {
 		queue_length = tp->snd_cwnd - w->bw_est * w->rtt_min;
 		ewr_thresh = beta * (1 - (w->rtt << 2) / w->delay_loss) * (1 - w->dmin_avg / w->dmax_avg);
+	} else if (w->delay_min != w->delay_max && w->delay_max != 0) {
+		queue_length = tp->snd_cwnd - w->bw_est * w->rtt_min;
+		ewr_thresh = beta * (1 - (w->rtt << 2) / w->delay_loss) * (1 - w->delay_min / w->delay_max);		
 	}
 
 	if (queue_length > ewr_thresh) {
