@@ -288,10 +288,10 @@ static void tcp_westwood_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	/* Use delay_min and delay_max until the first EWR event */
 	if (w->dmin_avg != w->dmax_avg && w->dmax_avg != 0) {
 		queue_length = tp->snd_cwnd - w->bw_est * w->rtt_min / tp->advmss;
-		ewr_thresh = beta * (1 - (w->rtt << 2) / w->delay_loss) * (1 - w->dmin_avg / w->dmax_avg);
+		ewr_thresh = (beta * (100 - 100 * (rtt << 2) / w->delay_loss) / 100) * (100 - 100 * w->dmin_avg / w->dmax_avg) / 100;
 	} else if (w->delay_min != w->delay_max && w->delay_max != 0 && !tcp_in_slow_start(tp)) {
 		queue_length = tp->snd_cwnd - w->bw_est * w->rtt_min / tp->advmss;
-		ewr_thresh = beta * (1 - (w->rtt << 2) / w->delay_loss) * (1 - w->delay_min / w->delay_max);		
+		ewr_thresh = (beta * (100 - 100 * (rtt << 2) / w->delay_loss) / 100) * (100 - 100 * w->delay_min / w->delay_max) / 100;		
 	}
 
 	if (queue_length > ewr_thresh) {
