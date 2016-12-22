@@ -174,7 +174,6 @@ void tcp_apledbat_cong_avoid(struct sock *sk, u32 ack, u32 acked) {
    u32 delay = 0;
    u32 queuing_delay;
    int off_target;
-   u32 cwnd;
    u32 max_allowed_cwnd;
 
    //estimate the remote peers time granularity -> doesn't work and therefore not used
@@ -218,28 +217,27 @@ void tcp_apledbat_cong_avoid(struct sock *sk, u32 ack, u32 acked) {
    }
 
    /* LEDABT cwnd increase/decrease */
-   cwnd = tp->snd_cwnd;
    off_target = target - queuing_delay;
    
    if (off_target >= 0) {
      /* under delay target, apply additive increase */
-	   cwnd++;	
+	   tp->snd_cwnd++;	
    } else {
      /* over delay target, apply 1/8th cwnd reduction */
 		 u32 decr;
 
-		 decr = cwnd >> 3;  
-		 cwnd -= decr;
+		 decr = tp->snd_cwnd >> 3;  
+		 tp->snd_cwnd -= decr;
    }
 
    // From RFC6817: max_allowed_cwnd = flightsize + ALLOWED_INCREASE * MSS
    max_allowed_cwnd = tp->packets_out + acked + ALLOWED_INCREASE;
-   cwnd = min(cwnd, max_allowed_cwnd); 
+   tp->snd_cwnd = min(tp->snd_cwnd, max_allowed_cwnd); 
    // or
    // cwnd = max(MIN_CWND, min(cwnd, tp->snd_cwnd_clamp));
 
    // set cwnd
-   tp->snd_cwnd = max(MIN_CWND, cwnd);
+   tp->snd_cwnd = max(MIN_CWND, tp->snd_cwnd);
 
    // also adapt ssthreash if the cwnd is reduced!
    if (tp->snd_cwnd <= tp->snd_ssthresh)
