@@ -221,7 +221,7 @@ void tcp_apledbat_cong_avoid(struct sock *sk, u32 ack, u32 acked) {
    
    if (off_target >= 0) {
      /* under delay target, apply additive increase */
-	   tp->snd_cwnd++;	
+	   tcp_reno_cong_avoid(sk, ack, acked);
    } else {
      /* over delay target, apply 1/8th cwnd reduction */
 		 u32 decr;
