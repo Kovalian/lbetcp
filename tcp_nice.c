@@ -29,7 +29,7 @@ static int threshold = 20;
 
 static int fraction_divisor = 0;
 
-static int max_fwnd = 48;
+static int max_fwnd = 96;
 
 module_param(alpha, int, 0644);
 MODULE_PARM_DESC(alpha, "lower bound of packets in network");
@@ -193,7 +193,7 @@ static void tcp_reno_fractional_ca(struct sock *sk, u32 ack, u32 acked)
 
 	tcp_reno_cong_avoid(sk, ack, acked);
 
-	cwnd_change = tp->snd_cwnd - cur_cwnd;
+	cwnd_change = 2 * (tp->snd_cwnd - cur_cwnd);
 
 	if (cwnd_change != 0) {
 			nice->fractional_cwnd -= cwnd_change;
@@ -214,7 +214,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct nice *nice = inet_csk_ca(sk);
 
-	if (nice->fractional_cwnd > 2 && nice->nice_timer == (2 * nice->fractional_cwnd)) {
+	if (nice->fractional_cwnd > 2 && nice->nice_timer == nice->fractional_cwnd) {
 		/* Send two packets in this RTT then reset the timer */
 		tp->snd_cwnd = 2;
 		nice->nice_timer = 1;
@@ -323,7 +323,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				if (tp->snd_cwnd > 2 && nice->fractional_cwnd == 2) {
 					tp->snd_cwnd = tp->snd_cwnd / 2;
 				} else if (nice->fractional_cwnd <= max_fwnd) {
-					nice->fractional_cwnd *= 2; 
+					nice->fractional_cwnd *= 4; 
 				}
 		    } else {
 				/* Congestion avoidance. */
@@ -338,7 +338,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 					if (tp->snd_cwnd > 2 && nice->fractional_cwnd == 2) {
 						tp->snd_cwnd--;
 					} else if (nice->fractional_cwnd <= max_fwnd) {
-						nice->fractional_cwnd++;
+						nice->fractional_cwnd+=2;
 					}
 
 					tp->snd_ssthresh
@@ -350,7 +350,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 					if (tp->snd_cwnd > 2 && nice->fractional_cwnd == 2) {
 						tp->snd_cwnd++;
 					} else if (nice->fractional_cwnd <= max_fwnd) {
-						nice->fractional_cwnd--;
+						nice->fractional_cwnd-=2;
 					}
 				} else {
 					/* Sending just as fast as we
