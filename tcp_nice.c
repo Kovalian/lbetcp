@@ -143,8 +143,8 @@ void tcp_nice_pkts_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 	nice->maxRTT = max(nice->maxRTT, vrtt);
 	nice->cntRTT++;
 
-	if (vrtt > ((100 - threshold) * (nice->baseRTT * 2000) / 200 + 
-			(threshold * (nice->maxRTT * 2000) / 200) / 1000)) {
+	if (vrtt > ((100 - threshold) * nice->baseRTT * 2000 / 200 + 
+			threshold * (nice->maxRTT * 2000) / 200) / 1000) {
 		nice->numCong++;
 	}
 }
