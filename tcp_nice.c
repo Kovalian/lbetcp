@@ -312,6 +312,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				 */
 				tp->snd_cwnd = min(tp->snd_cwnd, (u32)target_cwnd+1);
 				tp->snd_ssthresh = tcp_nice_ssthresh(tp);
+				nice->numCong = 0;
 
 			} else if (tcp_in_slow_start(tp)) {
 				/* Slow start.  */
@@ -325,6 +326,8 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 				} else if (nice->fractional_cwnd <= max_fwnd) {
 					nice->fractional_cwnd *= 4; 
 				}
+				
+				nice->numCong = 0; // Reset multiplicative decrease counter.
 		    } else {
 				/* Congestion avoidance. */
 
