@@ -351,7 +351,7 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 					/* We don't have enough extra packets
 					 * in the network, so speed up.
 					 */
-					if (tp->snd_cwnd > 2 && nice->fractional_cwnd == 2) {
+					if (tp->snd_cwnd >= 2 && nice->fractional_cwnd == 2) {
 						tp->snd_cwnd++;
 					} else if (nice->fractional_cwnd <= max_fwnd) {
 						nice->fractional_cwnd-=2;
