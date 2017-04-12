@@ -136,6 +136,10 @@ void tcp_nice_pkts_acked(struct sock *sk, u32 cnt, s32 rtt_us)
 	if (vrtt < nice->baseRTT)
 		nice->baseRTT = vrtt;
 
+	/* Initialise maxRTT to 2*minRTT */	
+	if (nice->cntRTT == 0)
+		nice->maxRTT = nice->baseRTT * 2;
+
 	/* Find the min RTT during the last RTT to find
 	 * the current prop. delay + queuing delay:
 	 */
@@ -263,9 +267,6 @@ static void tcp_nice_cong_avoid(struct sock *sk, u32 ack, u32 acked)
  				/* Just do Reno */
  				tcp_reno_cong_avoid(sk, ack, acked);
  			}
-
-			/* Initialise maxRTT to 2*minRTT */
-			nice->maxRTT = nice->minRTT * 2;
 		} else {
 			u32 rtt, diff;
 			u64 target_cwnd;
