@@ -1,9 +1,14 @@
-/*LEDBAT Congestion Control Algorithm
-  Stefan Fisches, Mirja Kuehlewind, Uni Stuttgart/ETH
-
-  Low Extra Delay Background Transport (LEDBAT) RFC6817
-  see <https://tools.ietf.org/html/rfc6817>
-*/
+/*
+ * Apple LEDBAT Congestion Control
+ * 
+ * Based on modified RFC6817 LEDBAT algorithm described at 
+ * https://opensource.apple.com/source/xnu/xnu-3789.21.4/bsd/
+ * netinet/tcp_ledbat.c.auto.html
+ * 
+ * Implementation based on LEDBAT implementation by 
+ * Stefan Fisches & Mirja Kuehlewind 
+ * Available at: http://mirja.kuehlewind.net/src/tcp_ledbat.c
+ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
