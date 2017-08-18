@@ -6,6 +6,10 @@ PWD := $(shell pwd)
 default:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
 
+.PHONY: install
+install:
+	$(MAKE) -C $(KDIR) M=$(PWD) modules_install
+
 .PHONY: clean
 clean:
 	$(MAKE) -C $(KDIR) M=$$PWD clean
