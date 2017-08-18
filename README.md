@@ -13,9 +13,8 @@ Note that these modules have only been tested with Linux 4.4.15 and are not guar
 The Makefile contains the necessary rule to compile all modules against the running kernel:
 > make
 
-Move the resulting modules to the library and update dependencies (root access will be required):
-> mv *.ko /lib/modules/$(shell uname -r)/kernel/net/ipv4/ \
-> depmod -a
+Run the install rule to move resulting modules to the library and update dependencies (root access will be required):
+> make install
 
 Once copied, the modules can be loaded and selected like any other TCP congestion control modules using:
 > modprobe tcp_[name] \
